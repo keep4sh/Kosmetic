@@ -40,8 +40,12 @@ class CrawlTopN():
             brand = a_class[i].find('span', class_="hds-text-body-medium hds-text-gray-tertiary").get_text()
             name =  a_class[i].find('span', class_="hds-text-body-medium hds-text-gray-primary").get_text()
             rating =  a_class[i].find('span', class_="hds-text-body-small hds-text-gray-secondary hds").get_text()
-            ml =  a_class[i].find('span', variant="capacity").get_text()
-            price =  a_class[i].find('span', class_="hds-text-body-large hds-text-gray-secondary").get_text()
+            try:
+                ml =  a_class[i].find('span', variant="capacity").get_text()
+                price =  a_class[i].find('span', class_="hds-text-body-large hds-text-gray-secondary").get_text()
+            except AttributeError:
+                ml = 'N/A'
+                price = 'N/A'
             topn_summary[i+1] = [type_, product_id, brand, name, rating, ml, price]
         
         top100_summary = pd.DataFrame.from_dict(topn_summary, orient='index', columns=['type','id','brand','name','rating','volume','price'])
@@ -61,26 +65,29 @@ class CallProductDetail():
         print(f"Status Code for {product_id}:", resp.status_code)
         product_html_content = resp.text
         product_soup = BeautifulSoup(product_html_content, 'html.parser')
-        return product_soup
+        if resp.status_code == 200:
+            return product_soup
+        else:
+            return 'error'
 
     # 제품 리뷰 키워드 정보 출력
     def call_product_detail(self, product_soup, product_id:int):
-        li_class = product_soup.find_all('li',class_="flex justify-between gap-x-8")
+        good_class = product_soup.find('div',class_="grow mr-24 w-1/2")
+        bad_class = product_soup.find('div',class_="grow ml-24 w-1/2")
+        gli_class = good_class.find_all('li',class_="flex justify-between gap-x-8")
+        bli_class = bad_class.find_all('li',class_="flex justify-between gap-x-8")
         # 좋아요
         good = []
-        for i in range(7):
-            gtag = li_class[i].find('span', class_="hds-text-caption-large text-gray-primary line-clamp-1").get_text()
-            greview_count = li_class[i].find('span',class_="hds-text-body-medium text-gray-tertiary").get_text()
+        for i in range(len(gli_class)):
+            gtag = gli_class[i].find('span', class_="hds-text-caption-large text-gray-primary line-clamp-1").get_text()
+            greview_count = gli_class[i].find('span',class_="hds-text-body-medium text-gray-tertiary").get_text()
             good.append(f'{gtag}({greview_count})')
         # 아쉬워요
         bad = []
-        for j in range(7):
-            try:
-                btag = li_class[j+7].find('span', class_="hds-text-caption-large text-gray-primary line-clamp-1").get_text()
-                breview_count = li_class[j+7].find('span',class_="hds-text-body-medium text-gray-tertiary").get_text()
-                bad.append(f'{btag}({breview_count})')
-            except IndexError:
-                pass
+        for j in range(len(bli_class)):
+            btag = bli_class[j].find('span', class_="hds-text-caption-large text-gray-primary line-clamp-1").get_text()
+            breview_count = bli_class[j].find('span',class_="hds-text-body-medium text-gray-tertiary").get_text()
+            bad.append(f'{btag}({breview_count})')
         good_tag = ', '.join(good)
         bad_tag = ', '.join(bad)
         product_review_tags = [product_id, good_tag, bad_tag]
@@ -129,8 +136,11 @@ class CallProductDetail():
         detail_dict = {}
         for i in self.product_id_list:
             soup = self.crawl_website(i)
-            detail_list = self.call_product_detail(soup, i)
-            detail_dict[i] = detail_list
+            if soup == 'error':
+                detail_dict[i] = []
+            else:
+                detail_list = self.call_product_detail(soup, i)
+                detail_dict[i] = detail_list
 
         detail_dataframe = pd.DataFrame.from_dict(detail_dict, orient='index', columns=['id','tag_good','tag_bad','ingredient_count','caution','allergy','efficacy','oily_skin','dry_skin','sensitive_skin'])
         # display(detail_dataframe)
