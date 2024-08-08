@@ -1,7 +1,7 @@
 from hwahae_crawler import CrawlTopN, CallProductDetail
 import pandas as pd
 
-def hwahae_main():
+def hwahae_main(number:int):
     category_id = {'스킨/토너': 4156,
     '로션/에멀젼': 4165,
     '에센스/엠플/세럼': 4174,
@@ -17,7 +17,7 @@ def hwahae_main():
     for category in category_id:
         id = category_id[category]
         type_ = CrawlTopN(category, id)
-        top100 = type_.call_topn_products(5)
+        top100 = type_.call_topn_products(number)
         crawl_list = [x for x in top100['id']]
         crawler = CallProductDetail(crawl_list)
         reviews = crawler.crawl_all()
@@ -29,4 +29,5 @@ def hwahae_main():
     print('File successfully saved!')
 
 if __name__ =='__main__':
-    hwahae_main()
+    number = input('How many?:')
+    hwahae_main(int(number))
